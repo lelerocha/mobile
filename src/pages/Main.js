@@ -1,90 +1,23 @@
-import React, {useState, useEffect} from 'react';
-import { StyleSheet, Image, View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  Image,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 import MapView, { Marker, Callout } from 'react-native-maps';
-import { requestPermissionsAsync, getCurrentPositionAsync } from 'expo-location';
+import {
+  requestPermissionsAsync,
+  getCurrentPositionAsync,
+} from 'expo-location';
 import { MaterialIcons } from '@expo/vector-icons';
-
-function Main({ navigation }) {
-    const [currentRegion, setCurrentRegion] = useState(null);
-
-    useEffect(() => {
-        async function loadInitialPosition() {
-            const { granted } = await requestPermissionsAsync();
-
-            if(granted) {
-                const { coords } = await getCurrentPositionAsync({
-                    enableHighAccuracy: true,
-                });
-
-                const { latitude, longitude } = coords;
-
-                setCurrentRegion({
-                    latitude,
-                    longitude,
-                    latitudeDelta: 0.04,
-                    longitudeDelta: 0.04,
-                })
-            }
-        }
-
-        loadInitialPosition();
-    }, []);
-
-    if(!currentRegion) {
-        return null;
-    }
-
-    return (
-      <>
-        <MapView initialRegion={currentRegion} style={styles.map}>
-          <Marker
-            coordinate={{ latitude: -16.7174425, longitude: -43.8543334 }}
-          >
-            <Image
-              style={styles.avatar}
-              source={{
-                uri:
-                  "https://avatars0.githubusercontent.com/u/5478007?s=460&v=4"
-              }}
-            />
-            <Callout
-              onPress={() => {
-                navigation.navigate("Profile", { github_username: "julioaze" });
-              }}
-            >
-              <View style={styles.callout}>
-                <Text style={styles.devName}>Julio Azevedo</Text>
-                <Text style={styles.devBio}>
-                  CTO na Hit Sistemas. Engenheiro de Software. Apaixonado por
-                  JavaScript e desenvolvimento web e mobile.
-                </Text>
-                <Text style={styles.devTechs}>
-                  ReactJS, React Native, NodeJS
-                </Text>
-              </View>
-            </Callout>
-          </Marker>
-        </MapView>
-
-        <View style={styles.searchForm}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar devs por tecnologias"
-            placeholderTextColor="#999"
-            autoCapitalize="words"
-            autoCorrect={false}
-          />
-          <TouchableOpacity onPress={() => {}} style={styles.loadButton}>
-              <MaterialIcons name="my-location" size={20} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </>
-    );
-}
+import api from './services/api';
 
 const styles = StyleSheet.create({
   map: {
-    flex: 1
+    flex: 1,
   },
 
   avatar: {
@@ -92,64 +25,166 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 50,
     borderWidth: 4,
-    borderColor: "#FFF"
+    borderColor: '#FFF',
   },
 
   callout: {
-    width: 260
+    width: 260,
   },
 
   devName: {
-    fontWeight: "bold",
-    fontSize: 16
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 
   devBio: {
-    color: "#666",
-    marginTop: 5
+    color: '#666',
+    marginTop: 5,
   },
 
   devTechs: {
-    marginTop: 5
+    marginTop: 5,
   },
 
   searchForm: {
-    position: "absolute",
+    position: 'absolute',
     top: 20,
     left: 20,
     right: 20,
     zIndex: 5,
-    flexDirection: "row"
+    flexDirection: 'row',
   },
 
   searchInput: {
-      flex: 1,
-      height: 50,
-      backgroundColor: '#FFF',
-      color: '#333',
-      borderRadius: 25,
-      paddingHorizontal: 20,
-      fontSize: 16,
-      // sombra iOS
-      shadowColor: '#000',
-      shadowOpacity: 0.2,
-      shadowOffset: {
-          width: 4,
-          height: 4,
-      },
-      // sombra Android
-      elevation: 2,
+    flex: 1,
+    height: 50,
+    backgroundColor: '#FFF',
+    color: '#333',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    // sombra iOS
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: {
+      width: 4,
+      height: 4,
+    },
+    // sombra Android
+    elevation: 2,
   },
 
   loadButton: {
-      width: 50,
-      height: 50,
-      backgroundColor: '#8E4DFF',
-      borderRadius: 25,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginLeft: 15,
-  }
+    width: 50,
+    height: 50,
+    backgroundColor: '#8E4DFF',
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 15,
+  },
 });
+
+function Main({ navigation }) {
+  const [devs, setDevs] = useState([]);
+  const [currentRegion, setCurrentRegion] = useState(null);
+  const [techs, setTechs] = useState('');
+  useEffect(() => {
+    async function loadInitialPosition() {
+      const { granted } = await requestPermissionsAsync();
+
+      if (granted) {
+        const { coords } = await getCurrentPositionAsync({
+          enableHighAccuracy: true,
+        });
+
+        const { latitude, longitude } = coords;
+
+        setCurrentRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.04,
+          longitudeDelta: 0.04,
+        });
+      }
+    }
+
+    loadInitialPosition();
+  }, []);
+
+  async function loadDevs() {
+    // pegar a localizacão do usuário
+    const { latitude, longitude } = currentRegion;
+
+    const response = await api.get('/search', {
+      params: {
+        latitude,
+        longitude,
+        techs,
+      },
+    });
+
+    setDevs(response.data.devs);
+  }
+
+  function handleRegionChanged(region) {
+    // console.log(region);
+    setCurrentRegion(region);
+  }
+
+  if (!currentRegion) {
+    return null;
+  }
+
+  return (
+    <>
+      <MapView
+        onRegionChangeComplete={handleRegionChanged}
+        initialRegion={currentRegion}
+        style={styles.map}
+      >
+        {devs.map(dev => (
+          <Marker
+            key={dev._id}
+            coordinate={{
+              latitude: dev.location.coordinates[1],
+              longitude: dev.location.coordinates[0],
+            }}
+          >
+            <Image style={styles.avatar} source={{ uri: dev.avatar_url }} />
+            <Callout
+              onPress={() => {
+                navigation.navigate('Profile', {
+                  github_username: dev.github_username,
+                });
+              }}
+            >
+              <View style={styles.callout}>
+                <Text style={styles.devName}>{dev.name}</Text>
+                <Text style={styles.devBio}>{dev.bio}</Text>
+                <Text style={styles.devTechs}>{dev.techs.join(', ')}}</Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+      </MapView>
+
+      <View style={styles.searchForm}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar devs por tecnologias"
+          placeholderTextColor="#999"
+          autoCapitalize="words"
+          autoCorrect={false}
+          value={techs}
+          onChangeText={setTechs}
+        />
+        <TouchableOpacity onPress={loadDevs} style={styles.loadButton}>
+          <MaterialIcons name="my-location" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+}
 
 export default Main;
